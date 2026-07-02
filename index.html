@@ -1170,7 +1170,7 @@ function openProduct(id){
   } else { szSec.style.display='none'; }
   const sold=p.stock==='sold-out';
   const buyBtn=document.getElementById('buy-btn');
-  buyBtn.disabled=sold; buyBtn.innerHTML=sold?'Sold Out':'<span class="cai">$</span> Buy Now with Cash App';
+  buyBtn.disabled=sold; buyBtn.innerHTML=sold?'Sold Out':'<span class="cai">$</span> Pay with Card or Apple Pay';
   document.getElementById('add-cart-btn').disabled=sold;
   openM('prod-modal');
 }

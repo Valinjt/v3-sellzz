@@ -639,27 +639,24 @@ a{color:inherit;text-decoration:none;}
       </div>
       <button class="btn-outline" id="add-cart-btn" onclick="addToCart()">🛒 Add to Cart</button>
 
-      <!-- Payment options shown upfront -->
-      <div id="payment-options">
-        <div style="font-family:var(--ff-mono);font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:9px;">Choose how to pay</div>
+      <!-- PAYMENT OPTIONS -->
+      <div style="margin-top:4px;">
+        <div style="font-family:var(--ff-mono);font-size:.63rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;text-align:center;">How would you like to pay?</div>
 
-        <!-- Stripe Checkout (card + cashapp) -->
-        <button class="btn-sky" id="buy-btn" onclick="startCO('single','stripe')" style="background:#635BFF;margin-bottom:8px;">
-          💳 Pay with Card / Apple Pay
+        <button id="buy-btn" onclick="startCO('single','stripe')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#635BFF;border:none;border-radius:10px;color:#fff;font-weight:800;font-size:.88rem;margin-bottom:8px;cursor:pointer;">
+          💳 Pay with Card or Apple Pay
         </button>
 
-        <!-- Manual Cash App -->
-        <button class="btn-outline" id="buy-cashapp-btn" onclick="startCO('single','cashapp')" style="border-color:#00D64F;color:#00D64F;">
-          <span style="font-weight:900;">$</span> Pay with Cash App $VJT26
+        <button id="buy-cashapp-btn" onclick="startCO('single','cashapp')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:#00D64F;border:none;border-radius:10px;color:#000;font-weight:800;font-size:.88rem;margin-bottom:8px;cursor:pointer;">
+          $ Pay with Cash App — $VJT26
         </button>
 
-        <!-- Cash at Meetup -->
-        <button class="btn-outline" id="buy-meetup-btn" onclick="startCO('single','cash')" style="margin-bottom:6px;">
+        <button id="buy-meetup-btn" onclick="startCO('single','cash')" style="display:flex;align-items:center;justify-content:center;gap:8px;width:100%;padding:13px;background:transparent;border:1px solid rgba(255,255,255,.2);border-radius:10px;color:#fff;font-weight:700;font-size:.88rem;cursor:pointer;">
           💵 Pay Cash at Meetup
         </button>
       </div>
 
-      <div class="sec-note">🔒 Secure checkout · All payments go to V1</div>
+      <div class="sec-note" style="margin-top:8px;">🔒 All payments go directly to V1</div>
     </div>
   </div>
 </div>
@@ -1170,7 +1167,7 @@ function openProduct(id){
   } else { szSec.style.display='none'; }
   const sold=p.stock==='sold-out';
   const buyBtn=document.getElementById('buy-btn');
-  buyBtn.disabled=sold; buyBtn.innerHTML=sold?'Sold Out':'<span class="cai">$</span> Pay with Card or Apple Pay';
+  buyBtn.disabled=sold; buyBtn.innerHTML=sold?'Sold Out':'<span class="cai">$</span> Buy Now with Cash App';
   document.getElementById('add-cart-btn').disabled=sold;
   openM('prod-modal');
 }

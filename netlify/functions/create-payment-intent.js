@@ -1,6 +1,6 @@
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
-exports.handler = async function(event, context) {
+exports.handler = async function(event) {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -11,32 +11,31 @@ exports.handler = async function(event, context) {
     return { statusCode: 200, headers, body: '' };
   }
 
-  if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
-  }
-
   try {
     const { amount, summary, name, ig } = JSON.parse(event.body);
 
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100),
-      currency: 'usd',
+    const session = await stripe.checkout.sessions.create({
       payment_method_types: ['cashapp'],
-      description: summary || 'V1 Order',
-      metadata: {
-        customer_name: name || '',
-        instagram: ig || '',
-        item: summary || ''
-      },
+      line_items: [{
+        price_data: {
+          currency: 'usd',
+          product_data: { name: summary || 'V1 Order' },
+          unit_amount: Math.round(amount * 100),
+        },
+        quantity: 1,
+      }],
+      mode: 'payment',
+      success_url: 'https://v1.netlify.app?payment=success',
+      cancel_url: 'https://v1.netlify.app?payment=cancelled',
+      metadata: { name: name || '', ig: ig || '' },
     });
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+      body: JSON.stringify({ url: session.url }),
     };
   } catch (err) {
-    console.error('Stripe error:', err);
     return {
       statusCode: 500,
       headers,

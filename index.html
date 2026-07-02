@@ -679,11 +679,28 @@ a{color:inherit;text-decoration:none;}
   <div class="mbox cbox">
     <button class="mcl" style="position:absolute;" onclick="closeM('qr-modal')">✕</button>
     <div class="calogo">$</div>
-    <h3>Scan to Pay</h3>
+    <h3>Pay with Cash App</h3>
     <div class="citem" id="qr-item"></div>
     <div class="camount" id="qr-amt">$0</div>
-    <div class="qrblk">DEMO QR CODE<br>(live in production)</div>
-    <div class="cnote">V3 has been notified with your name, Instagram, and location. In the live version this QR connects to a real Cash App session.</div>
+
+    <!-- $VJT26 cashtag display -->
+    <div style="background:rgba(56,189,248,.08);border:1px solid rgba(56,189,248,.25);border-radius:12px;padding:18px;margin:14px 0;text-align:center;">
+      <div style="font-family:var(--ff-mono);font-size:.68rem;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px;">Send payment to</div>
+      <div style="font-family:var(--ff-head);font-size:2rem;color:var(--sky);letter-spacing:.04em;">$VJT26</div>
+      <div style="font-size:.75rem;color:var(--grey);margin-top:6px;">Valin Taylor · V3 Sellzz</div>
+    </div>
+
+    <!-- Open Cash App button -->
+    <a id="cashapp-link" href="https://cash.app/$VJT26" target="_blank" style="display:flex;align-items:center;justify-content:center;gap:10px;width:100%;padding:14px;background:#00D64F;border:none;border-radius:10px;color:#000;font-weight:800;font-size:.95rem;text-decoration:none;margin-bottom:10px;transition:opacity .15s ease;">
+      <span style="font-size:1.1rem;">$</span> Open Cash App &amp; Pay
+    </a>
+
+    <div class="cnote">
+      1. Tap the button above to open Cash App<br>
+      2. Send the exact amount shown to <strong>$VJT26</strong><br>
+      3. Add your order in the note (e.g. "Dunk Low size 10")<br>
+      4. V3 will confirm your order on Instagram once payment is received.
+    </div>
     <button class="swbtn" onclick="switchToMeetup()">💵 Pay Cash at Meetup Instead</button>
   </div>
 </div>
@@ -1240,6 +1257,9 @@ async function confirmDelivery(){
   } else {
     document.getElementById('qr-item').textContent=summary;
     document.getElementById('qr-amt').textContent=`$${total}`;
+    // Update Cash App link with exact amount
+    const caLink = document.getElementById('cashapp-link');
+    if(caLink) caLink.href = `https://cash.app/$VJT26/${total}`;
     openM('qr-modal');
     const ord = await supa.post('orders',{item:summary,size:items[0].size||'—',buyer:ig||name,location:loc,amount:total,status:'pending'});
     if(ord&&ord[0]) ORDERS.unshift(ord[0]);

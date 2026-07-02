@@ -638,8 +638,28 @@ a{color:inherit;text-decoration:none;}
         <div class="mqty"><button class="qbtn" onclick="chQty(-1)">−</button><span class="qval" id="m-qty">1</span><button class="qbtn" onclick="chQty(1)">+</button></div>
       </div>
       <button class="btn-outline" id="add-cart-btn" onclick="addToCart()">🛒 Add to Cart</button>
-      <button class="btn-sky" id="buy-btn" onclick="startCO('single')"><span class="cai">$</span> Buy Now with Cash App</button>
-      <div class="sec-note">🔒 Secure checkout via Cash App Pay</div>
+
+      <!-- Payment options shown upfront -->
+      <div id="payment-options">
+        <div style="font-family:var(--ff-mono);font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:9px;">Choose how to pay</div>
+
+        <!-- Stripe Checkout (card + cashapp) -->
+        <button class="btn-sky" id="buy-btn" onclick="startCO('single','stripe')" style="background:#635BFF;margin-bottom:8px;">
+          💳 Pay with Card or Cash App
+        </button>
+
+        <!-- Manual Cash App -->
+        <button class="btn-outline" id="buy-cashapp-btn" onclick="startCO('single','cashapp')" style="border-color:#00D64F;color:#00D64F;">
+          <span style="font-weight:900;">$</span> Pay with Cash App $VJT26
+        </button>
+
+        <!-- Cash at Meetup -->
+        <button class="btn-outline" id="buy-meetup-btn" onclick="startCO('single','cash')" style="margin-bottom:6px;">
+          💵 Pay Cash at Meetup
+        </button>
+      </div>
+
+      <div class="sec-note">🔒 Secure checkout · All payments go to V1</div>
     </div>
   </div>
 </div>
@@ -651,7 +671,9 @@ a{color:inherit;text-decoration:none;}
     <div class="cdb" id="cdb"></div>
     <div class="cdf" id="cdf" style="display:none;">
       <div class="c-total"><span>Total</span><span id="c-total">$0</span></div>
-      <button class="btn-sky" onclick="startCO('cart')"><span class="cai">$</span> Checkout with Cash App</button>
+      <button class="btn-sky" onclick="startCO('cart','stripe')" style="background:#635BFF;margin-bottom:8px;">💳 Pay with Card or Cash App</button>
+      <button class="btn-outline" onclick="startCO('cart','cashapp')" style="border-color:#00D64F;color:#00D64F;margin-bottom:8px;"><span style="font-weight:900;">$</span> Pay with Cash App $VJT26</button>
+      <button class="btn-outline" onclick="startCO('cart','cash')">💵 Pay Cash at Meetup</button>
     </div>
   </div>
 </div>
@@ -1204,18 +1226,38 @@ function remCart(id){ CART=CART.filter(x=>x.cid!==id); sv.cart(); updateBadge();
 ══════════════════════════════════════════ */
 let coMode='single', payM='cashapp', lastDel=null;
 
-function startCO(mode){
+async function startCO(mode, paymentChoice) {
   if(mode==='single'){
     if(!curP) return;
     if(curP.sizes&&curP.sizes.trim()&&!selSz) return alert('Please select a size first.');
     if(curP.stock==='sold-out') return;
   }
-  coMode=mode; payM='cashapp';
-  document.getElementById('pay-ca').classList.add('act');
-  document.getElementById('pay-cash').classList.remove('act');
-  document.getElementById('d-time-f').style.display='none';
-  document.getElementById('d-loc-lbl').textContent='Delivery Address or Meetup Location';
-  document.getElementById('d-confirm-btn').innerHTML='Confirm &amp; Continue to Payment';
+  coMode=mode;
+
+  // If cash at meetup, skip delivery modal payment toggle and go straight to cash
+  if(paymentChoice==='cash'){
+    payM='cash';
+    document.getElementById('pay-ca').classList.remove('act');
+    document.getElementById('pay-cash').classList.add('act');
+    document.getElementById('d-time-f').style.display='block';
+    document.getElementById('d-loc-lbl').textContent='Meetup Location';
+    document.getElementById('d-confirm-btn').innerHTML='Schedule Meetup';
+  } else if(paymentChoice==='cashapp'){
+    payM='manualcashapp';
+    document.getElementById('pay-ca').classList.add('act');
+    document.getElementById('pay-cash').classList.remove('act');
+    document.getElementById('d-time-f').style.display='none';
+    document.getElementById('d-loc-lbl').textContent='Delivery Address or Meetup Location';
+    document.getElementById('d-confirm-btn').innerHTML='Confirm &amp; Continue to Payment';
+  } else {
+    payM='stripe';
+    document.getElementById('pay-ca').classList.add('act');
+    document.getElementById('pay-cash').classList.remove('act');
+    document.getElementById('d-time-f').style.display='none';
+    document.getElementById('d-loc-lbl').textContent='Delivery Address or Meetup Location';
+    document.getElementById('d-confirm-btn').innerHTML='Confirm &amp; Continue to Payment';
+  }
+
   ['d-name','d-ig','d-loc'].forEach(id=>document.getElementById(id).value='');
   document.getElementById('d-time').value='';
   closeM('prod-modal'); closeCart(); openM('del-modal');
@@ -1248,6 +1290,7 @@ async function confirmDelivery(){
   renderProductGrid(); closeM('del-modal');
 
   if(payM==='cash'){
+    // Cash at meetup
     const mt = await supa.post('meetups',{summary,total,name,ig,location:loc,meetup_time:time,status:'scheduled'});
     if(mt&&mt[0]) MEETUPS.unshift(mt[0]);
     const inb = await supa.post('inbox',{type:'meetup',item:summary,price:total,name,ig,location:loc,meetup_time:time,read:false});
@@ -1259,15 +1302,45 @@ async function confirmDelivery(){
     document.getElementById('mt-time').textContent=fmtTime(time);
     document.getElementById('mt-loc').textContent=loc;
     openM('meet-modal');
-  } else {
-    document.getElementById('qr-item').textContent=summary;
-    document.getElementById('qr-amt').textContent=`$${total}`;
-    openM('qr-modal');
-    // Mount Stripe Cash App Pay
-    initStripeCashApp(total, summary, name, ig, loc);
+
+  } else if(payM==='stripe'){
+    // Stripe Checkout — redirect to Stripe hosted page
     const ord = await supa.post('orders',{item:summary,size:items[0].size||'—',buyer:ig||name,location:loc,amount:total,status:'pending'});
     if(ord&&ord[0]) ORDERS.unshift(ord[0]);
-    const inb = await supa.post('inbox',{type:items.length>1?'bulk':'purchase',item:summary,price:total,name,ig,location:loc,read:false});
+    const inb = await supa.post('inbox',{type:'purchase',item:summary,price:total,name,ig,location:loc,read:false});
+    if(inb&&inb[0]) INBOX.unshift(inb[0]);
+    updateAdminBadges();
+    sendNotification('Stripe Order', summary, name, ig, loc, total);
+    if(coMode==='cart'){ CART=[]; sv.cart(); updateBadge(); }
+    // Call Netlify function and redirect to Stripe Checkout
+    toast('Redirecting to secure checkout...');
+    try {
+      const res = await fetch('/.netlify/functions/create-payment-intent',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({amount:total,summary,name,ig}),
+      });
+      const data = await res.json();
+      if(data.url) window.open(data.url,'_blank');
+      else toast('Could not open Stripe checkout. Please try Cash App instead.');
+    } catch(err){ toast('Error connecting to Stripe. Please try Cash App instead.'); }
+    return;
+
+  } else {
+    // Manual Cash App $VJT26
+    document.getElementById('qr-item').textContent=summary;
+    document.getElementById('qr-amt').textContent=`$${total}`;
+    const caLink = document.getElementById('cashapp-link');
+    if(caLink) caLink.href=`https://cash.app/$VJT26/${total}`;
+    // Hide Stripe button, show only Cash App
+    const btn = document.getElementById('stripe-cashapp-btn');
+    const loading = document.getElementById('stripe-loading');
+    if(btn) btn.innerHTML='';
+    if(loading) loading.style.display='none';
+    openM('qr-modal');
+    const ord = await supa.post('orders',{item:summary,size:items[0].size||'—',buyer:ig||name,location:loc,amount:total,status:'pending'});
+    if(ord&&ord[0]) ORDERS.unshift(ord[0]);
+    const inb = await supa.post('inbox',{type:'purchase',item:summary,price:total,name,ig,location:loc,read:false});
     if(inb&&inb[0]) INBOX.unshift(inb[0]);
     updateAdminBadges();
     sendNotification('Cash App Order', summary, name, ig, loc, total);

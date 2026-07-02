@@ -1691,8 +1691,9 @@ document.querySelectorAll('.mov').forEach(o=>o.addEventListener('click',e=>{if(e
 /* ══════════════════════════════════════════
    STRIPE CASH APP PAY
 ══════════════════════════════════════════ */
-const STRIPE_PK = 'pk_live_51TohZ7AxfKAyRoaMV2SSbuaeaCcaZVPZb4n2nqDu4GA895IX6PVyvhtwWPUPuIoS4zigCi5lUiJEHldknRxU6tCo00yzRiJnSC';
+const STRIPE_PK = 'pk_test_51TohZ7AxfKAyRoaMhVhluzkTYQRzS8CMzYBTJCIBndMoKE7gtlsKwN2IIOSpyTPHEAFaGyer1e03KIRHjDjoGdTp00dvlMwrz6';
 let stripeInstance = null;
+let stripeElements = null;
 
 async function initStripeCashApp(total, summary, name, ig, loc) {
   const btnContainer = document.getElementById('stripe-cashapp-btn');
@@ -1701,37 +1702,65 @@ async function initStripeCashApp(total, summary, name, ig, loc) {
   const fallback = document.getElementById('cashapp-link');
 
   if(btnContainer) btnContainer.innerHTML = '';
-  if(loading) loading.style.display = 'block';
+  if(loading) { loading.style.display = 'block'; loading.textContent = 'Setting up payment...'; }
   if(note) note.style.display = 'none';
   if(fallback) fallback.style.display = 'none';
 
   try {
+    // Call our Netlify function to create a PaymentIntent
+    const res = await fetch('/.netlify/functions/create-payment-intent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount: total, summary, name, ig }),
+    });
+
+    const data = await res.json();
+
+    if(!data.clientSecret) throw new Error(data.error || 'No client secret returned');
+
     if(!stripeInstance) stripeInstance = Stripe(STRIPE_PK);
 
-    // Create a PaymentIntent via Supabase Edge Function or show fallback
-    // Since we don't have a backend, use Stripe Payment Links approach
-    // Fall back to manual $VJT26 with Stripe branding
+    // Mount Stripe Cash App Pay element
+    const appearance = {
+      theme: 'night',
+      variables: { colorPrimary: '#38BDF8', borderRadius: '10px' }
+    };
+
+    stripeElements = stripeInstance.elements({ appearance, clientSecret: data.clientSecret });
+
+    const cashAppPayElement = stripeElements.create('cashAppPay', {
+      buttonType: 'buy',
+      buttonTheme: 'dark',
+    });
+
     if(loading) loading.style.display = 'none';
+    if(btnContainer) {
+      cashAppPayElement.mount('#stripe-cashapp-btn');
+      cashAppPayElement.on('click', async () => {
+        const result = await stripeInstance.confirmCashAppPayment(data.clientSecret, {
+          payment_method: { billing_details: { name: name || 'Customer' } },
+          return_url: `${window.location.origin}?payment=success`,
+        });
+        if(result.error) {
+          toast('Payment failed: ' + result.error.message);
+        } else {
+          closeM('qr-modal');
+          toast('Payment successful! V1 will confirm your order on Instagram. 🎉');
+        }
+      });
+    }
+
     if(note) note.style.display = 'block';
+
+  } catch(err) {
+    console.warn('Stripe error:', err);
+    if(loading) loading.style.display = 'none';
+    // Show fallback manual Cash App link if Stripe fails
     if(fallback) {
       fallback.style.display = 'flex';
       fallback.href = `https://cash.app/$VJT26/${total}`;
     }
-
-    // Show Stripe-branded Cash App button
-    if(btnContainer) {
-      btnContainer.innerHTML = `
-        <div style="background:#00D64F;border-radius:10px;padding:14px;text-align:center;cursor:pointer;margin-bottom:10px;" onclick="window.open('https://cash.app/$VJT26/${total}','_blank')">
-          <div style="font-family:'Archivo Black',sans-serif;font-size:1rem;color:#000;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px;">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="black"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm.75 17.5h-1.5v-1.25h1.5V17.5zm1.128-4.87c-.4.37-.878.62-1.378.75V14.5h-1v-.87c-.75-.19-1.378-.69-1.878-1.44l.94-.69c.38.56.88.88 1.438.88.688 0 1.125-.38 1.125-.94 0-.5-.312-.81-1.125-1.06-1.25-.38-1.875-1-1.875-1.94 0-.81.563-1.5 1.375-1.75V6.5h1v.94c.625.19 1.125.56 1.5 1.19l-.875.69c-.313-.44-.688-.69-1.125-.69-.563 0-.938.31-.938.81 0 .44.313.75 1.063 1 1.312.38 1.937 1.06 1.937 2.06 0 .88-.562 1.56-1.187 2.03z"/></svg>
-            Pay $${total} with Cash App
-          </div>
-        </div>`;
-    }
-  } catch(err) {
-    console.warn('Stripe init error:', err);
-    if(loading) loading.style.display = 'none';
-    if(fallback) { fallback.style.display = 'flex'; fallback.href = `https://cash.app/$VJT26/${total}`; }
+    if(note) { note.style.display = 'block'; note.textContent = 'Tap below to pay manually via Cash App.'; }
   }
 }
 
